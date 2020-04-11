@@ -1,0 +1,22 @@
+[netdata_master]
+Netdata-Central ansible_host=172.16.76.173
+
+
+[promethues]
+Prometheus-server ansible_host=172.16.77.50
+
+
+[grafana]
+Grafana-Server  ansible_host=172.16.76.168
+
+
+[netdata_slaves]
+Netdata-Slave7 ansible_host=172.20.3.35
+
+[netdata_slaves_db]
+Netdata-Slave-DB ansible_host=192.168.56.127
+
+
+[netdata_slaves_redis]
+Netdata-Slave-Redis ansible_host=192.168.56.127
+

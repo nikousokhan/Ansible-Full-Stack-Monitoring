@@ -1,0 +1,9 @@
+#jinja2:lstrip_blocks: True
+[stream]
+    enabled = {{slave_enable_stream}}
+    destination = {{ netdata_master_ip }}:{{ netdata_master_port }}
+    api key = {{uuid}}
+
+    buffer size bytes = {{buffer_size_bytes}}
+
+    reconnect delay seconds = {{reconnect_delay_seconds}}

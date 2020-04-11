@@ -1,0 +1,47 @@
+---
+- name: install python-pip for  centos systems
+  yum: 
+     name: python-pip  
+     state: latest 
+     update_cache: yes
+  when: ansible_distribution == "CentOS"
+
+- name: install python-pip  for ubuntu systems
+  apt: 
+     name: python-pip  
+     state: latest 
+     update_cache: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: install MySQL-python  for centos systems
+  yum: 
+     name: MySQL-python  
+     state: latest 
+     update_cache: yes
+  when: ansible_distribution == "CentOS"
+
+- name: install python-mysqldb  for ubuntu systems
+  apt: 
+     name: python-mysqldb
+     state: latest 
+     update_cache: yes
+  when: ansible_distribution == "Ubuntu"
+
+
+- name: Generate mysql.conf file
+  template:
+    src: mysql.conf.j2
+    dest: /opt/netdata/etc/netdata/python.d/mysql.conf
+    owner: netdata
+    mode: 0640
+  tags: ['update_slaves_mysql_file']
+  notify: restart netdata
+
+- name: Update python.d.conf file 
+  template:
+    src: python.d.conf.j2 
+    dest: /opt/netdata/etc/netdata/python.d.conf
+    owner: netdata
+    group: netdata
+    mode: '0644'
+  notify: restart netdata

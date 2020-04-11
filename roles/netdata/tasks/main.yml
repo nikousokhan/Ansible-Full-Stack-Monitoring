@@ -1,0 +1,21 @@
+---
+- name: Checking whether netdata systemd unit exists under /etc
+  stat: 
+    path: /etc/systemd/system/netdata.service
+  register: etc_netdata_exists
+- name: renaming old netdata unit to netdata_old.service
+  shell: mv /etc/systemd/system/netdata.service /etc/systemd/system/netdata_old.service
+  when: etc_netdata_exists.stat.exists
+- name: Generating Netdata prebuilt script
+  template:
+    src: kickstart-static64.sh.j2
+    dest: /tmp/kickstart-static64.sh
+    mode: 0744
+- name: Executing netdata prebuild installer
+  shell: /tmp/kickstart-static64.sh --non-interactive --stable-channel --no-updates
+# - name: update netdata
+#   shell: /opt/netdata/usr/libexec/netdata/netdata-updater.sh
+#   tags: ['never', 'update_netdata']
+- name: Uninstall netdata 
+  shell: /opt/netdata/usr/libexec/netdata/netdata-uninstaller.sh --yes -f
+  tags: ['never', 'uninstall_netdata']

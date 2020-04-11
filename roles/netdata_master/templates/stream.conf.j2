@@ -1,0 +1,11 @@
+#jinja2:lstrip_blocks: True
+[{{uuid}}]
+    enabled = {{master_accept_stream_enabled}}
+
+    allow from = *
+
+    health enabled by default = auto
+
+    multiple connections = allow
+
+    default memory mode = {{default_memory_mode}}

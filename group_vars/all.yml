@@ -1,0 +1,317 @@
+---
+#--------------------------------------------------------------------------------------------------------------
+###-----------------------------------------Netdata_Global_Config----------------------------------------------
+###------------------------------------------------------------------------------------------------------------
+netdata_master_ip: 172.16.76.173
+
+prometheus_server_ip: 172.16.77.50
+
+grafana_server_ip: 172.16.76.128
+
+#--------------------------------------------------------------------------------------------------------------
+##------------------------------------------Netdata_Global_Config----------------------------------------------
+##-------------------------------------------------------------------------------------------------------------
+
+#----Netdata version to be installed
+netdata_version_prebuilt: v1.19.0
+
+#----Netdata global configuration management
+uuid: 12370493-ee42-4989-b6b0-1069e21da4d8
+
+#--------------------------------------------------------------------------------------------------------------
+###-----------------------------------------Netdata_Master_Config----------------------------------------------
+###------------------------------------------------------------------------------------------------------------
+
+netdata_master_port : 19999
+
+#----Master stream.conf
+master_accept_stream_enabled: yes
+default_memory_mode : "dbengine"
+
+#----netdata.conf Master
+hostname : "Netdata-Central"
+page_cache_size: 128
+dbengine_disk_space : 2048
+enabled_registry : yes
+memory_deduplication_ksm : yes
+
+#----Variables used for netdata master systemd unit ( You can roughly estimate that the Netdata service needs 2048 file descriptors for every 10 streaming slave hosts when streaming is configured to use memory mode = dbengine)
+LimitNOFILE: 65536
+
+#----health alarm notify on master
+rocketchat_webhook_url: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          39616664333131303833336332626534306139343133636334656633633436363638623862316435
+          3662613061343432363632343530613139336633643233640a366263306564316239313330366337
+          32316632613930333338313738643939363438643465623065356430396161373465333432386562
+          6130333530396230620a383165663736363238376433376332333131333931313736656134356437
+          63616262346439633533383061303863333233353233326130383233623762663239363537386634
+          35336631323564333263383537626139313861623562663030383837633331663039623535333030
+          33373930353738306436343930646166313935636363633531636261313031616633666635663332
+          61346632363866653235373534613938343535343731356164333830643766343033393030343965
+          38363238353839393730316436333733396266343562653533646664616561326536
+default_recipient_rocketchat: netdata-monitoring
+
+slack_webhook_url: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          34626661323266353737613865336233373039383138343231663139613562633466333538393537
+          6364653635653163343163353864373033656139363363330a306663663032613032343035613534
+          38336234306339353364353134366561363866323065613831386331376537303638383239383765
+          6639353763303333620a316565346563393235393534326338636534306431656565376235363838
+          66313264363635373330373430656136393465393630663039303965663033643839666262303766
+          62336230623266666335653935336433386330613339346665303662303034656433643533343238
+          32343662343462313164663764616635396431393766663937656633613034386537633664663234
+          63356162636266363538
+default_recipient_slack: grafana_alerts
+
+###---------------------------Netdata_Master_Discovery_URL_Config----------------------------------------------
+
+#External services httpcheck.conf
+Server_Name : "Ali Cloud"
+url : "http://downloads-snapp-site.oss-eu-central-1.aliyuncs.com/ios/ios-download.html"
+redirect : "no"
+method : "GET"
+status_accepted : "200"
+
+###----------------------------Netdata_Master_Trigger-MOnitoring_Config----------------------------------------
+
+#---- Netdata mysql health configuration
+mysql_replication_min_critical: 900
+mysql_replication_max_critical: 1000
+
+#---- Netdata disk space configuration
+disk_space_monitoring_skip: /var/lib/heketi/mounts/*
+
+
+#--------------------------------------------------------------------------------------------------------------
+###-----------------------------------------Netdata_Slaves_Config----------------------------------------------
+###------------------------------------------------------------------------------------------------------------
+
+#----Slave Stream.conf
+slave_enable_stream: yes
+buffer_size_bytes : 10485760
+reconnect_delay_seconds : 5
+
+
+#----Slave netdata.conf
+memory_mode : none
+error_log : no
+debug_log : no
+access_log : no
+enabled_registry_slave : no
+
+#--------------------------------------------------------------------------------------------------------------
+###---------------------------------------Netdata_Slave_DB_Config----------------------------------------------
+###------------------------------------------------------------------------------------------------------------
+
+#----Slave DB Set Config mysql.conf Netdata
+db_username: monitor_dba
+db_password : !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          32666230633630616361383034383430343863343938363966613762326335316336623234343230
+          3333623034653836366466346562633662623065666437620a303235653762636361316462303430
+          65363765336662333539633237396462623235393337636234613661303161323931336666633266
+          6362653236356236640a366162343866386361633638643263363262306535653939653038313066
+          3964
+
+#-------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------Promethus_Config----------------------------------------------
+#-------------------------------------------------------------------------------------------------------------
+prometheus_version: 2.15.2
+prometheus_binary_local_dir: ''
+
+prometheus_config_dir: /etc/prometheus
+prometheus_db_dir: /var/lib/prometheus
+
+prometheus_web_listen_address: "{{prometheus_server_ip}}:{{prometheus_web_port}}"
+prometheus_web_port: "9090"
+prometheus_web_external_url: ''
+
+prometheus_storage_retention: "30d"
+prometheus_storage_retention_size: "0"
+
+prometheus_config_flags_extra: {}
+ # prometheus_config_flags_extra:
+ #   storage.tsdb.retention: 15d
+ #   alertmanager.timeout: 10s
+
+
+prometheus_global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+
+prometheus_external_labels:
+  environment: "{{ ansible_fqdn | default(ansible_host) | default(inventory_hostname) }}"
+
+prometheus_scrape_configs:
+  - job_name: "prometheus"
+    metrics_path: "{{ prometheus_metrics_path }}"
+    static_configs:
+      - targets:
+          - "{{ ansible_fqdn | default(ansible_host) | default('localhost') }}:9090"
+
+  - job_name: "node"
+    file_sd_configs:
+      - files:
+          - "{{ prometheus_config_dir }}/file_sd/node.yml"
+
+  - job_name: 'netdata-central'
+    metrics_path: '/api/v1/allmetrics'
+    params:
+      format: [prometheus_all_hosts]
+    honor_labels: true
+    static_configs:
+      - targets: ['{{ netdata_master_ip }}:{{ netdata_master_port }}']
+
+prometheus_static_targets_files:
+  - prometheus/targets/*.yml
+  - prometheus/targets/*.json
+
+
+# Alternative config file name, searched in ansible templates path.
+prometheus_config_file: 'prometheus.yml.j2'
+
+prometheus_remote_write: []
+
+prometheus_remote_read: []
+
+prometheus_targets: {}
+
+prometheus_alertmanager_config: []
+
+#-------------------------------------------------------------------------------------------------------------
+##-----------------------------------------------Grafana_Config----------------------------------------------
+
+grafana_version: latest
+
+#----Add Grafana repository file RHEL/CentOS
+grafana_yum_repo_template: etc/yum.repos.d/grafana.repo.j2
+
+#----Add Grafana repository D_dashboards_dir: "{{playbook_dir}}/roles/grafana/dashboards"ebian/Ubuntu
+grafana_environment: {}
+
+grafana_address: "{{grafana_server_ip}}"
+grafana_port: 3000
+
+#----Variables correspond to ones in grafana.ini configuration file
+#----Security
+grafana_security:
+  admin_user: 'admin'
+  admin_password: "123456"
+
+#----Database setup
+grafana_database:
+  type: sqlite3
+
+#----Additional options for grafana "server" section
+#----This section WILL omit options for: http_addr, http_port, domain, and root_url, as those settings are set by variables listed before
+grafana_server:
+  protocol: http
+  enforce_domain: false
+  socket: ""
+  cert_key: ""
+  cert_file: ""
+  enable_gzip: false
+  static_root_path: public
+  router_logging: false
+  serve_from_sub_path: false
+
+#---- Plugins from https://grafana.com/plugins
+grafana_plugins:
+  - yesoreyeram-boomtable-panel
+  - raintank-worldping-app
+
+#----Datasources to configure
+grafana_datasources: 
+  - name: "Prometheus"
+    type: "prometheus"
+    access: "proxy"
+    url: "http://{{prometheus_server_ip}}:{{prometheus_web_port}}"
+    isDefault: true
+    
+
+#----Dashboards to configure
+grafana_dashboards_dir: "{{playbook_dir}}/roles/grafana/dashboards"
+
+#----Dashboards from https://grafana.com/dashboards
+grafana_dashboards:
+    state: present
+    message: Updated by ansible
+    overwrite: yes
+    path: "*.json"
+    datasource: 'Prometheus'
+    grafana_url: "http://{{netdata_master_ip}}:3000"
+
+
+grafana_use_provisioning: true
+
+#----Should the provisioning be kept synced. If true, previous provisioned objects will be removed if not referenced anymore.
+grafana_provisioning_synced: false
+
+grafana_instance: "{{ ansible_fqdn | default(ansible_host) | default(inventory_hostname) }}"
+
+grafana_logs_dir: "/var/log/grafana"
+grafana_data_dir: "/var/lib/grafana"
+
+#----To enable the use of ports below 1024 for unprivileged processes linux needs to set CAP_NET_BIND_SERVICE.
+#----This has some security implications, and should be a conscious choice.
+#----Get informed by reading: http://man7.org/linux/man-pages/man7/capabilities.7.html
+grafana_cap_net_bind_service: false
+
+#----External Grafana address. Variable maps to "root_url" in grafana server section
+grafana_url: "http://{{ grafana_address }}:{{ grafana_port }}"
+grafana_api_url: "{{ grafana_url }}"
+grafana_domain: "{{ ansible_fqdn | default(ansible_host) | default('localhost') }}"
+
+#----Remote cache
+grafana_remote_cache: {}
+
+#----User management and registration
+grafana_welcome_email_on_sign_up: false
+grafana_users:
+  allow_sign_up: false
+  auto_assign_org_role: Viewer
+  default_theme: dark
+
+#----grafana authentication mechanisms
+grafana_auth: {}
+
+grafana_ldap: {}
+
+grafana_session: {}
+
+grafana_analytics: {}
+
+#----Set this for mail notifications
+grafana_smtp: {}
+
+#----Enable grafana alerting mechanism
+grafana_alerting:
+  execute_alerts: true
+
+#----Grafana logging configuration
+grafana_log:
+
+#----Internal grafana metrics system
+grafana_metrics: {}
+
+#----Distributed tracing options
+grafana_tracing: {}
+
+grafana_snapshots: {}
+
+#----External image store
+grafana_image_storage: {}
+
+#----Alert notification channels to configure
+grafana_alert_notifications: []
+
+#----API keys to configure
+grafana_api_keys: []
+
+#----The location where the keys should be stored.
+grafana_api_keys_dir: "{{ lookup('env', 'HOME') }}/grafana/keys"
+
+#----Panels configurations
+grafana_panels: {}

@@ -1,0 +1,9 @@
+---
+- name: restart netdata
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: netdata
+
+#- name: killall USR2
+#  shell: "/usr/bin/killall -USR2 netdata"

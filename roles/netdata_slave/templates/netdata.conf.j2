@@ -1,0 +1,13 @@
+#jinja2:lstrip_blocks: True
+[global]
+    memory mode = {{memory_mode}}
+	error log = {{error_log}} 
+	debug log = {{debug_log}}
+	access log = {{access_log}}
+
+[web]
+	mode = none
+
+[registry]
+    enabled = {{enabled_registry_slave}}
+    registry to announce = http://{{netdata_master_ip}}:{{netdata_master_port}}

@@ -1,0 +1,36 @@
+---
+- hosts: netdata_master
+  become: yes
+  roles: 
+    - role: netdata
+    - role: netdata_master
+  tags: ['netdata_master']
+
+- hosts: netdata_slaves
+  become: yes
+  roles:
+    - role: netdata
+    - role: netdata_slave
+  tags: ['netdata_slave']
+
+- hosts: netdata_slaves_db
+  become: yes
+  roles:
+    - role: netdata
+    - role: netdata_slave
+    - role: netdata_slave_db
+  tags: ['netdata_slave_mariadb']
+
+- hosts: promethues
+  become: yes
+  roles:
+    - role: prometheus
+  tags: ['prometheus']
+
+
+- hosts: grafana
+  become: yes
+  roles:
+    - role: grafana
+  tags: ['grafana']
+

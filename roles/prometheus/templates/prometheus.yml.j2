@@ -1,0 +1,321 @@
+# global config
+global:
+  scrape_interval:     30s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 30s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  external_labels:
+      monitor: 'codelab-monitor'
+
+
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+       - localhost:9093
+
+
+
+
+
+##### INFLUXDB CONFIG##########
+remote_write:
+#  - url: "http://172.16.76.37:8086/api/v1/prom/write?db=prometheus&u=prometh&p=cQF9FG3t2BGkI"
+
+#remote_read:
+#  - url: "http://172.16.76.37:8086/api/v1/prom/read?db=prometheus&u=prometh&p=1234567890"
+
+###############################
+
+
+
+
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+   - {{ prometheus_config_dir }}/rules/*.rules
+   - "rules/netdata.alert.yml"
+   - "rules/blackbox.alert.yml"
+   - "rules/ipmi.alert.yml"
+   - "rules/heketi.alert.yml"
+   - "rules/libvirt.yml"
+ # - "rules/netdata.rules"
+
+
+#===================================================================================================================================
+##------------------------------------------------------------TEAM DEVOPS-----------------------------------------------------------
+#===================================================================================================================================
+
+
+scrape_configs:
+#-------------------------------------------------------------------------------------------------------------------------------------------telegraf
+
+  - job_name: telegraf
+    scrape_interval: 1m
+    scrape_timeout: 30s
+    metrics_path: /metrics
+    scheme: http
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/telegraf.yml'
+#-------------------------------------------------------------------------------------------------------------------------------------------ipmi
+
+  - job_name: ipmi
+    scrape_interval: 1m
+    scrape_timeout: 30s
+    metrics_path: /metrics
+    scheme: http
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/ipmi.yml'
+#-------------------------------------------------------------------------------------------------------------------------------------------heketi
+
+  - job_name: heketi
+    scrape_interval: 1m
+    scrape_timeout: 30s
+    metrics_path: /metrics
+    scheme: http
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/heketi.yml'
+#-------------------------------------------------------------------------------------------------------------------------------------------prometheus
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+#-------------------------------------------------------------------------------------------------------------------------------------------mysql-scrape
+
+  - job_name: 'mysql-scrape'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/mysql.yml'
+#-------------------------------------------------------------------------------------------------------------------------------------------netdata-scrape
+
+  - job_name: 'netdata-scrape'
+    metrics_path: '/api/v1/allmetrics'
+    params:
+      format: [prometheus]
+      name: [yes]
+    honor_labels: true
+    metric_relabel_configs:
+      - source_labels: [instance]
+        regex: '([^:]+)(.*)'
+        replacement: '${1}'
+        target_label: host
+      - source_labels: [chart]
+        regex:  '^(web_log_)(.*)(\..*)'
+        target_label: vhost
+        replacement: '${2}'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/netdata.yml'
+        - '/etc/prometheus/targets/netdata-manual.yml'
+#-------------------------------------------------------------------------------------------------------------------------------------------blackbox
+
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(api.*)'
+        action: keep
+      - source_labels: [__address__]
+        regex: '(.*)(:.*)'
+        replacement: '${1}/health-check'
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/netdata.yml'
+        - '/etc/prometheus/targets/netdata-manual.yml'
+
+#-------------------------------------------------------------------------------------------------------------------------------------------redis-tcp-check
+
+#  - job_name: 'redis-tcp-check'
+#    prober: tcp
+#    timeout: 5s
+#    tcp:
+#      query_response:
+#        - expect: "PING :([^ ]+)"
+#          send: "PONG ${1}"
+#    static_configs:
+#      - targets:
+#        - http://location_115
+#-------------------------------------------------------------------------------------------------------------------------------------------netdata-scrape-raw
+
+  - job_name: 'netdata-scrape-raw'
+    scrape_interval: 60s
+    metrics_path: '/api/v1/allmetrics'
+    params:
+      format: [prometheus]
+      source: [as-collected]
+      server: ['prometheus-raw']
+      name: [yes]
+    honor_labels: true
+    metric_relabel_configs:
+      - source_labels: [instance]
+        regex: '([^:]+)(.*)'
+        replacement: '${1}'
+        target_label: host
+      - source_labels: [ __name__ ]
+        regex: '(.*)(ride_status|web_log|nginx|proxysql)(.*)'
+        action: keep
+      - source_labels: [chart]
+        regex:  '^(web_log_)(.*)(\..*)'
+        target_label: vhost
+        replacement: '${2}'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/targets/netdata.yml'
+        - '/etc/prometheus/targets/netdata-manual.yml'
+#-------------------------------------------------------------------------------------------------------------------------------------------haproxy
+
+  - job_name: 'haproxy'
+    static_configs:
+      - targets:
+        - smapp-internal-lb-107:9101
+        - smapp-internal-lb-111:9101
+        - devops-internal-lb-81:9101
+        - devops-internal-lb-193:9101
+        - srv-redis-haproxy-201:9101
+        - srv-redis-haproxy-203:9101
+        - haproxy-01:9101
+        - haproxy-02:9101
+#-------------------------------------------------------------------------------------------------------------------------------------------nginx-exporter
+
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets:
+        - api-123:9113
+#-------------------------------------------------------------------------------------------------------------------------------------------node-exporter
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets:
+        - elastic-01.elk.afra.snapp.infra:9100
+        - elastic-02.elk.afra.snapp.infra:9100
+        - elastic-03.elk.afra.snapp.infra:9100
+        - elastic-04.elk.afra.snapp.infra:9100
+        - elastic-05.elk.afra.snapp.infra:9100
+        - kafka-01.elk.afra.snapp.infra:9100
+        - kafka-02.elk.afra.snapp.infra:9100
+        - kafka-03.elk.afra.snapp.infra:9100
+#-------------------------------------------------------------------------------------------------------------------------------------------elasticsearch
+
+
+  - job_name: elasticsearch
+    scrape_interval: 60s
+    scrape_timeout:  30s
+    metrics_path: "/metrics"
+    static_configs:
+    - targets:
+      - elastic-01.elk.afra.snapp.infra:9108
+      - elastic-02.elk.afra.snapp.infra:9108
+      - elastic-03.elk.afra.snapp.infra:9108
+      - elastic-04.elk.afra.snapp.infra:9108
+      - elastic-05.elk.afra.snapp.infra:9108
+      labels:
+        service: elasticsearch
+    relabel_configs:
+    - source_labels: [__address__]
+      regex: '(.*)\:9108'
+      target_label:  'instance'
+      replacement:   '$1'
+    - source_labels: [__address__]
+      regex:         '.*\.(.*)\.lan.*'
+      target_label:  'environment'
+      replacement:   '$1'
+#-------------------------------------------------------------------------------------------------------------------------------------------kafka_exporter
+
+  - job_name: kafka_exporter
+    scrape_interval: 60s
+    scrape_timeout:  30s
+    metrics_path: "/metrics"
+    static_configs:
+    - targets:
+      - kafka-01.elk.afra.snapp.infra:9308
+      - kafka-02.elk.afra.snapp.infra:9308
+      - kafka-03.elk.afra.snapp.infra:9308
+      labels:
+        service: kafka_exporter
+#-------------------------------------------------------------------------------------------------------------------------------------------libvirt_exporter
+
+  - job_name: libvirt_exporter
+    scrape_interval: 60s
+    scrape_timeout:  30s
+    scheme: http
+    metrics_path: "/metrics"
+    static_configs:
+    - targets:
+      - sv20.snapp:9000
+      labels:
+        service: libvirt_exporter
+#-------------------------------------------------------------------------------------------------------------------------------------------netdata-central
+
+  - job_name: 'netdata-central'
+    metrics_path: '/api/v1/allmetrics'
+    params:
+      format: [prometheus_all_hosts]
+    honor_labels: true
+    static_configs:
+      - targets: ['172.16.76.7:19999']
+#-------------------------------------------------------------------------------------------------------------------------------------------sattar_exporter
+
+  - job_name: sattar_exporter
+    scrape_interval: 60s
+    scrape_timeout:  30s
+    scheme: http
+    metrics_path: "/api/v1/metrics"
+    static_configs:
+      - targets:
+        - sattar-01.app.afra.snapp.infra
+        - sattar-02.app.afra.snapp.infra
+#-------------------------------------------------------------------------------------------------------------------------------------------redis-lb-haproxy
+
+  - job_name: redis-lb-haproxy
+    scrape_interval: 10s
+    scrape_timeout:  5s
+    scheme: http
+    metrics_path: "/metrics"
+    static_configs:
+      - targets:
+        - redis-01-lb.afra.snapp.infra:1987
+        - redis-02-lb.afra.snapp.infra:1987
+        - redis-03-lb.afra.snapp.infra:1987
+        - redis-04-lb.afra.snapp.infra:1987
+        - redis-05-lb.afra.snapp.infra:1987
+        - redis-06-lb.afra.snapp.infra:1987
+#-------------------------------------------------------------------------------------------------------------------------------------------sattar_app_exporter
+
+  - job_name: sattar_app_exporter
+    scrape_interval: 60s
+    scrape_timeout:  30s
+    scheme: http
+    metrics_path: "/metrics"
+    static_configs:
+      - targets:
+        - sattar-01.db.afra.snapp.infra:9104
+        - sattar-01.app.afra.snapp.infra:9121
+        - sattar-01.lb.afra.snapp.infra:9101
+        - sattar-02.app.afra.snapp.infra:9121
+#-------------------------------------------------------------------------------------------------------------------------------------------sattar_system_stats
+
+  - job_name: sattar_system_stats
+    scrape_interval: 60s
+    scrape_timeout:  30s
+    scheme: http
+    metrics_path: "/metrics"
+    static_configs:
+      - targets:
+        - sattar-01.db.afra.snapp.infra:9100
+        - sattar-01.app.afra.snapp.infra:9100
+        - sattar-02.app.afra.snapp.infra:9100
+        - sattar-01.lb.afra.snapp.infra:9100
+
+#===================================================================================================================================
+#------------------------------------------------------------TEAM BRAVO-------------------------------------------------------------
+#===================================================================================================================================

@@ -1,0 +1,101 @@
+---
+- name: Generating stream.conf file
+  template:
+    src: stream.conf.j2
+    dest: /opt/netdata/etc/netdata/stream.conf
+    owner: netdata
+    mode: 0640
+  tags: ['update_server_stream__file']
+  notify: restart netdata
+
+- name: Generating httpcheck.conf file
+  template:
+    src: httpcheck.conf.j2  
+    dest: /opt/netdata/netdata-configs/orig/python.d/httpcheck.conf
+    owner: netdata
+    mode: 0640
+  tags: ['update_server_httpcheck_file']
+  notify: restart netdata
+
+- name: Generating netdata.conf file
+  template:
+    src: netdata.conf.j2
+    dest: /opt/netdata/etc/netdata/netdata.conf
+    mode: 0640
+  tags: ['update_server_conf_file']
+  notify: restart netdata
+
+- name: Updating netdata.service file
+  template:
+    src: netdata.service.j2
+    dest: /lib/systemd/system/netdata.service
+    mode: 0664
+    owner: root
+    group: root
+  tags: ['update_server_service_file']
+  notify: restart netdata
+
+- name: Generating health_alarm_notify.conf file
+  template:
+    src: health_alarm_notify.conf.j2
+    dest: /opt/netdata/etc/netdata/health_alarm_notify.conf
+    mode: 0640
+    owner: netdata
+    group: netdata
+  tags: ['update_server_alarm_notify_file']
+  #notify: killall USR2
+
+- name: Generating alerts for MySQL
+  template:
+    src: health.d/mysql.conf.j2
+    dest: /opt/netdata/usr/lib/netdata/conf.d/health.d/mysql.conf
+    owner: netdata
+    group: netdata
+    mode: '0644'
+  tags: ['update_server_alerts_mysql']
+  #notify: killall USR2
+
+- name: Generating alerts for disks
+  template:
+    src: health.d/disks.conf.j2
+    dest: /opt/netdata/usr/lib/netdata/conf.d/health.d/disks.conf
+    owner: netdata
+    group: netdata
+    mode: '0644'
+  tags: ['update_server_alerts_disks']
+#  notify: killall USR2
+
+
+#- name: install ksmtuned for  centos systems
+#  yum:
+#     name: ksmtuned
+#     state: latest
+#     update_cache: yes
+#  when: ansible_distribution == "CentOS"
+
+
+- name: install ksmtuned  for ubuntu systems
+  apt:
+     name: ksmtuned
+     state: latest
+     update_cache: yes
+  when: ansible_distribution == "Ubuntu"
+
+
+- name: Run ksmd kernel daemon
+  shell: |
+    echo '1' > /sys/kernel/mm/ksm/run
+
+- name: it will run once per second and evaluate 100 pages for de-duplication
+  shell: |
+    echo '1000' > /sys/kernel/mm/ksm/sleep_millisecs
+
+- name: it will run once per second and evaluate 100 pages for de-duplication
+  shell: |
+    echo 'w /sys/kernel/mm/ksm/run - - - - 1' > /etc/tmpfiles.d/ksm.conf
+
+#- name: restart ksmtuned
+#  service:
+#     name: ksmtuned
+#     state: restarted
+#  when: ansible_distribution == "Ubuntu"

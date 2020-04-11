@@ -1,0 +1,17 @@
+#jinja2:lstrip_blocks: True
+[global]
+        hostname = {{hostname}}
+	memory mode = dbengine
+	dbengine disk space = {{dbengine_disk_space}}
+        page cache size = {{page_cache_size}}
+        memory deduplication (ksm) = {{memory_deduplication_ksm}}
+	debug log = /opt/netdata/var/log/netdata/debug.log
+	error log = /opt/netdata/var/log/netdata/error.log
+	access log = /opt/netdata/var/log/netdata/access.log
+
+[web]
+	default port = {{netdata_master_port}}
+
+[registry]
+        enabled = {{enabled_registry}}
+        registry to announce = http://{{netdata_master_ip}}:{{netdata_master_port}}

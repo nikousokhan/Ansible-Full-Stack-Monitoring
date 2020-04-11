@@ -1,0 +1,19 @@
+---
+- name: Generating redis.conf file
+  template:
+    src: redis.conf.j2
+    dest: /opt/netdata/etc/netdata/python.d/redis.conf
+    owner: netdata
+    group: netdata
+    mode: 0640
+  tags: ['update_slaves_redis_file']
+  notify: restart netdata
+
+- name: Update python.d.conf file 
+  template:
+    src: python.d.conf.j2 
+    dest: /opt/netdata/etc/netdata/python.d.conf
+    owner: netdata
+    group: netdata
+    mode: '0644'
+  notify: restart netdata

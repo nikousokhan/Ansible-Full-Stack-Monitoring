@@ -1,0 +1,34 @@
+---
+- name: Generate stream.conf file
+  template:
+    src: stream.conf.j2
+    dest: /opt/netdata/etc/netdata/stream.conf
+    owner: netdata
+    mode: 0640
+  tags: ['update_slaves_stream_file']
+  notify: restart netdata
+- name: Update netdata.conf file 
+  template:
+    src: netdata.conf.j2
+    dest: /opt/netdata/etc/netdata/netdata.conf
+    owner: netdata
+    group: netdata
+    mode: '0644'
+  notify: restart netdata
+- name: Checking whether netdata_old exists
+  stat:
+    path: /etc/systemd/system/netdata_old.service
+  register: netdata_old_exists
+  tags: ['never', 'rollback', 'disable_rollback']
+- name: starting old netdata unit
+  systemd:
+    state: started
+    name: netdata_old
+  when: netdata_old_exists.stat.exists
+  tags: ['never', 'rollback']
+- name: stoping old netdata unit
+  systemd:
+    state: stopped
+    name: netdata_old
+  when: netdata_old_exists.stat.exists
+  tags: ['never', 'disable_rollback']
